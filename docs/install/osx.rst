@@ -36,16 +36,15 @@ download pyne-staging cd to that directory::
     python setup.py install
 
 
-Once those lines have been added, run the following command before running 
-``nuc_data_make``::
+Once those lines have been added, run the following command before running ``nuc_data_make``::
 
     source ~/.bashrc
     
-or ::
+or::
 
     source ~/.bash_profile
     
-then install ''nuc_data_make'' ::
+then install '``nuc_data_make``::
 
     cd scripts
     nuc_data_make
