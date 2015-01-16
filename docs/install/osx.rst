@@ -24,11 +24,11 @@ to ~/.bash_profile, then::
     source ~/.bash_profile
     sudo pip install numpy
     sudo chown -R $(whoami) /usr/local
-    brew install gfortran
-    pip install scipy
-    pip install cython
-    pip install numexpr
-    pip install tables
+    sudo brew install gcc
+    sudo pip install scipy
+    sudo pip install cython
+    sudo pip install numexpr
+    sudo pip install tables
 
 download pyne-staging cd to that directory::
 
@@ -40,3 +40,8 @@ Once those lines have been added, run the following command before running
 ``nuc_data_make``::
 
     source ~/.bashrc
+or ::
+    source ~/.bash_profile
+then install ''nuc_data_make'' ::
+    cd scripts
+    nuc_data_make
