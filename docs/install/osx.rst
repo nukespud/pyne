@@ -40,8 +40,12 @@ Once those lines have been added, run the following command before running
 ``nuc_data_make``::
 
     source ~/.bashrc
+    
 or ::
+
     source ~/.bash_profile
+    
 then install ''nuc_data_make'' ::
+
     cd scripts
     nuc_data_make
