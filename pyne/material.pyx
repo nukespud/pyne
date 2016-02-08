@@ -1,5 +1,4 @@
 """Python wrapper for material library."""
-
 from __future__ import division, unicode_literals
 
 # Cython imports
@@ -23,6 +22,7 @@ from pyne.utils import QAWarning
 import os
 import sys
 if sys.version_info[0] >= 3:
+    #Python2 basestring is now Python3 string
     basestring = str
 
 import tables as tb
@@ -65,7 +65,7 @@ cdef class _Material:
     def __cinit__(self, nucvec=None, double mass=-1.0, double density=-1.0,
                   double atoms_per_molecule=-1.0, metadata=None, bint free_mat=True,
                   *args, **kwargs):
-        """Material C++ constuctor."""
+        """Material C++ constructor."""
         cdef cpp_map[int, double] comp
         cdef jsoncpp.Value cmetadata = jsoncpp.Value({} if metadata is None else metadata)
 
@@ -334,7 +334,6 @@ cdef class _Material:
         nucpath_bytes = nucpath.encode('UTF-8')
         c_nucpath = nucpath_bytes
         self.mat_pointer.write_hdf5(c_filename, c_datapath, c_nucpath, row, chunksize)
-
 
     def mcnp(self, frac_type='mass'):
         """mcnp(frac_type)
@@ -622,6 +621,36 @@ cdef class _Material:
         return nucvec_proxy
 
 
+    def dose_per_g(self, dose_type, source=0):
+        """This provides the dose per gram using the comp of the the Material.
+
+        Parameters
+        ----------
+        dose_type : string
+            One of: ext_air, ext_soil, ingest, inhale
+        source : int
+            optional; default is EPA
+            0 for EPA, 1 for DOE, 2 for GENII
+
+        Returns
+        -------
+        nucvec : dict
+            For a Material mat:
+            ext_air_dose returns mrem/h per g per m^3
+            ext_soil_dose returns mrem/h per g per m^2
+            ingest_dose returns mrem per g
+            inhale_dose returns mrem per g
+        """
+        cdef conv._MapIntDouble nucvec_proxy = conv.MapIntDouble()
+        cdef std_string dosetype
+        if not isinstance(dose_type, bytes):
+            dose_type = dose_type.encode()
+        dosetype = std_string(<char *> dose_type)
+        nucvec_proxy.map_ptr = new cpp_map[int, double](
+                self.mat_pointer.dose_per_g(dosetype, source))
+        return nucvec_proxy
+
+
     def molecular_mass(self, atoms_per_molecule=-1.0):
         """molecular_mass(atoms_per_molecule=-1.0)
         This method returns the molecular mass of the comp of this
@@ -657,14 +686,14 @@ cdef class _Material:
         return newmat
 
     def collapse_elements(self, nucset):
-        """collapse_elements(self)
+        """collapse_elements(self, nucset)
         Collapses the elements in the material, excluding the nucids in 
-	paramater set. This function returns a copy of the material.
+	the set nucset. This function returns a copy of the material.
 
         Returns
         -------
         newmat : Material
-            A copied and collapseed material.
+            A copied and collapsed material.
 
         """
         cdef _Material newmat = Material()
@@ -1143,6 +1172,22 @@ cdef class _Material:
 
         self.mat_pointer.from_atom_frac(af)
 
+
+    def to_atom_dens(self):
+        """Converts the material to a map of nuclides to atom densities.
+
+        Returns
+        -------
+        atom_dens : mapping
+            Dictionary-like object that maps nuclides to atom densites in the
+            material.
+
+        """
+        cdef conv._MapIntDouble comp_proxy = conv.MapIntDouble()
+        comp_proxy.map_ptr = new cpp_map[int, double](self.mat_pointer.to_atom_dens())
+        return comp_proxy
+        
+        
     #
     # Radioactive Properties
     #
@@ -2197,10 +2242,10 @@ cdef class _MaterialLibrary(object):
         cdef _Material mat
         cdef dict _lib = (<_MaterialLibrary> self)._lib
         cdef np.ndarray mattable
-        with tb.openFile(file, 'r') as f:
-            matstable = f.getNode(datapath)[:]
-            nucs = f.getNode(nucpath)[:]
-            matsmetadata = f.getNode(datapath + '_metadata').read()
+        with tb.open_file(file, 'r') as f:
+            matstable = f.get_node(datapath)[:]
+            nucs = f.get_node(nucpath)[:]
+            matsmetadata = f.get_node(datapath + '_metadata').read()
         for i in range(len(matstable)):
             row = matstable[i]
             comp = dict((<int> k, v) for k, v in zip(nucs, row[3]) if v != 0.0)

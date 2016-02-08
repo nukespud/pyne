@@ -37,6 +37,7 @@ PyNE has the following dependencies:
    #. `Python 2.7 <http://www.python.org/>`_
    #. `LAPACK <http://www.netlib.org/lapack/>`_
    #. `BLAS <http://www.netlib.org/blas/>`_
+   #. `Jinja2 <http://jinja.pocoo.org/>`_
 
 Optional Depenendencies:
    #. `MOAB <http://trac.mcs.anl.gov/projects/ITAPS/wiki/MOAB>`_
@@ -47,16 +48,19 @@ Additionally, building the documentation requires the following:
    #. `Sphinx <http://sphinx-doc.org/>`_
    #. `sphinxcontrib-bibtex <https://pypi.python.org/pypi/sphinxcontrib-bibtex/>`_
    #. `PrettyTable <https://code.google.com/p/prettytable/>`_
+   #. `numpydoc <https://pypi.python.org/pypi/numpydoc>`_
 
 Most of the dependencies are readily available through package managers. 
 
 ------
 Binary
 ------
-Binary distributions of the latest release (0.4) for mac and linux (64-bit) 
+Binary distributions of the latest release for mac and linux (64-bit) 
 using the conda package manager can be installed by running the command::
 
-    conda install -c https://conda.binstar.org/pyne pyne
+    conda install -c cyclus -c pyne pyne=VERSION
+
+where VERSION should be replaced with the version number to be installed.
 
 A windows 32-bit binary is also available on conda via the same command but
 it is highly experimental and likely broken. Conda binaries do not have 
@@ -112,7 +116,9 @@ After installing anaconda or miniconda from
 `the Continuum downloads page <http://continuum.io/downloads>`_,
 in a new terminal run the following conda install command::
 
-    conda install -c https://conda.binstar.org/pyne pyne
+    conda install -c cyclus -c pyne pyne=VERSION
+
+where VERSION should be replaced with the version number to be installed.
 
 If you have any issues, please let us know.
 
@@ -204,8 +210,8 @@ Ubuntu 14.04 Build script
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A script for installing PyNE and all its dependencies from scratch on Ubuntu
-14.04 is found `here
-<https://github.com/pyne/install_scripts/blob/master/ubuntu_14.04.sh>`_
+15.04 is found `here
+<https://github.com/pyne/install_scripts/blob/master/ubuntu_15.04.sh>`_
 
 .. install-end
 

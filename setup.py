@@ -32,6 +32,7 @@ from __future__ import print_function
 
 import io
 import os
+import re
 import sys
 import imp
 import shutil
@@ -41,14 +42,24 @@ import platform
 import warnings
 import subprocess
 from glob import glob
-from distutils import core, dir_util
+from distutils import core, dir_util, sysconfig
 from contextlib import contextmanager
 if sys.version_info[0] < 3:
     from urllib import urlopen
 else:
     from urllib.request import urlopen
+try:
+    from setuptools import setup as _setup
+    have_setuptools = True
+except ImportError:
+    from distutils.core import setup as _setup
+    have_setuptools = False
 
 import numpy as np
+
+# import src into pythonpath - needed to actually run decaygen/atomicgen
+if '.' not in sys.path:
+    sys.path.append(os.getcwd()+'/src')
 
 # Thanks to http://patorjk.com/software/taag/
 # and http://www.chris.com/ascii/index.php?art=creatures/dragons
@@ -81,7 +92,7 @@ pyne_logo = """\
                                      `
 """
 
-VERSION = '0.5-dev'
+VERSION = '0.5.0-rc1'
 IS_NT = os.name == 'nt'
 
 CMAKE_BUILD_TYPES = {
@@ -110,9 +121,9 @@ def cleanpypath(path):
 
 
 def assert_np_version():
-    low = (1, 8, 0)
+    low = (1, 8)
     v = np.version.short_version
-    cur = tuple(map(int, v.split('.')))
+    cur = tuple(map(int, v.split('.')[:2]))
     if cur < low:
         msg = "numpy version too low! {0} (have) < 1.8.0 (min)".format(v)
         raise ValueError(msg)
@@ -169,6 +180,37 @@ def download_decay():
     durl.close()
     return True
 
+local_ensdf_evaluators = ['alphad', 'delta', 'gtol', 'hsicc', 'hsmrg', 'seqhst',
+                          'logft', 'radd', 'ruler']
+local_ensdf_tools = [['ensdf_processing/RADD/98AK04.in', '98AK04.in'], 
+                     ['ensdf_processing/RADD/ELE.in', 'ELE.in']]
+
+def copy_ensdf_executables(exe_dest):
+    print('Copying ENSDF Executables to install directory')
+    # Hack for copying the executables the first time PyNE is instealled, before 
+    # pyne has been added to the python path.
+    if exe_dest[-4:] != 'pyne':
+        exe_dest = sysconfig.get_python_lib()
+        for f in os.listdir(sysconfig.get_python_lib()):
+            if re.match('pyne', f):
+                exe_dest = exe_dest + '/' + f
+        exe_dest = exe_dest + '/pyne'
+    for tool in local_ensdf_evaluators:
+        try:
+            local_path = os.path.join('build',os.path.join('src',tool))
+            dest_path = os.path.join(exe_dest, tool)
+            shutil.copy(local_path, dest_path)
+        except Exception:
+            print('Some ENSDF processing executables were unable to be copied to the \
+                   install directory.')
+    for tool in local_ensdf_tools:
+        try:
+            local_path = os.path.join('src', tool[0])
+            dest_path = os.path.join(exe_dest, tool[1])
+            shutil.copy(local_path, dest_path)
+        except Exception:
+            print('Some ENSDF processing executables were unable to be copied to the \
+                   install directory.')
 
 def generate_decay():
     with indir('src'):
@@ -182,17 +224,16 @@ def generate_decay():
             return False
     return True
 
-
 def ensure_decay():
     mb = 1024**2
     if os.path.isfile(DECAY_H) and os.path.isfile(DECAY_CPP) and \
        os.stat(DECAY_CPP).st_size > mb:
         return
-    downloaded = download_decay()
-    if downloaded:
-        return
     generated = generate_decay()
     if generated:
+        return
+    downloaded = download_decay()
+    if downloaded:
         return
     print('!'*42)
     print('Decay files could not be downloaded or generated, using surrogates instead.')
@@ -201,6 +242,41 @@ def ensure_decay():
     shutil.copy(DECAY_H_REP, DECAY_H)
     shutil.copy(DECAY_CPP_REP, DECAY_CPP)
 
+ATOMIC_H = os.path.join('src', 'atomic_data.h')
+ATOMIC_CPP = os.path.join('src', 'atomic_data.cpp')
+ATOMIC_H_UNDER = os.path.join('src', '_atomic_data.h')
+ATOMIC_CPP_UNDER = os.path.join('src', '_atomic_data.cpp')
+
+def generate_atomic():
+    with indir('src'):
+        try:
+            import atomicgen
+        except ImportError:
+            return False
+        try:
+            atomicgen.build()
+        except Exception:
+            return False
+    return True
+
+def ensure_atomic():
+    mb = 1024**2
+    # if the file exists then we're done!
+    if os.path.isfile(ATOMIC_H) and os.path.isfile(ATOMIC_CPP) and \
+       os.stat(ATOMIC_CPP).st_size > mb:
+        return
+    # generate the data
+    generated = generate_atomic()
+    if generated:
+        return
+    # last resort - if generate atomic failed, use the backup
+    if not os.path.isfile(ATOMIC_H) and not os.path.isfile(ATOMIC_CPP):
+        shutil.copy(ATOMIC_H_UNDER, ATOMIC_H)
+        shutil.copy(ATOMIC_CPP_UNDER, ATOMIC_CPP)
+    else:
+        # copy the freshly generated file to the last resort for consistency
+        shutil.copy(ATOMIC_H, ATOMIC_H_UNDER)
+        shutil.copy(ATOMIC_CPP, ATOMIC_CPP_UNDER)
 
 def ensure_nuc_data():
     import tempfile
@@ -239,6 +315,8 @@ def parse_cmake(ns):
         a.append('-DCMAKE_BUILD_TYPE=' + CMAKE_BUILD_TYPES[ns.build_type.lower()])
     if ns.prefix is not None:
         a.append('-DCMAKE_INSTALL_PREFIX=' + ns.prefix)
+    if have_setuptools:
+        a.append('-DHAVE_SETUPTOOLS=TRUE')
     return a
 
 
@@ -345,8 +423,9 @@ def setup():
         "package_data": pack_data,
         "data_files": data_files,
         "scripts": scripts,
+        #"zip_safe": False,
         }
-    rtn = core.setup(**setup_kwargs)
+    rtn = _setup(**setup_kwargs)
 
 
 def cmake_cli(cmake_args):
@@ -376,6 +455,7 @@ def cmake_cli(cmake_args):
 def main_body(cmake_args, make_args):
     assert_dep_versions()
     ensure_decay()
+    ensure_atomic()
     if not os.path.exists('build'):
         os.mkdir('build')
     cmake_cmd = cmake_cli(cmake_args)
@@ -424,6 +504,7 @@ def main():
         pynepath = "${HOME}/.local/python2.7/site-packages"
     libpath = abspath(joinpath(pynepath, '..', '..', '..'))
     binpath = abspath(joinpath(libpath, '..', 'bin'))
+    copy_ensdf_executables(pynepath)
     msg = ("\nNOTE: If you have not done so already, please be sure that your PATH and "
            "LD_LIBRARY_PATH (or DYLD_FALLBACK_LIBRARY_PATH on Mac OSX) has been "
            "appropriately set to the install prefix of pyne. For this install of "

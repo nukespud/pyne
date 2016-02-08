@@ -67,6 +67,7 @@ cdef extern from "material.h" namespace "pyne":
         map[int, double] mult_by_mass() except +
         map[int, double] activity() except +
         map[int, double] decay_heat() except +
+        map[int, double] dose_per_g(std_string, int) except +
         double molecular_mass() except +
         double molecular_mass(double) except +
         Material expand_elements() except +
@@ -97,6 +98,8 @@ cdef extern from "material.h" namespace "pyne":
         # Atom frac member functions
         map[int, double] to_atom_frac() except +
         void from_atom_frac(map[int, double]) except +
+        
+        map[int, double] to_atom_dens() except +
 
 
         vector[pair[double, double]] gammas() except +
